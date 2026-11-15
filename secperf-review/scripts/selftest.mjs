@@ -62,7 +62,7 @@ const agent2 = async (prompt, o) => {
 const args2 = { skillDir: dir, repoRoot: '/w', base: 'b1', baseLabel: 'drupal: develop + react: develop', notes: [],
   repos: [{ label: 'drupal', root: '/w/drupal', baseLabel: 'develop' }, { label: 'react', root: '/w/react', baseLabel: 'develop' }],
   only: ['a11y', 'cache', 'logic', 'performance', 'security'], deep: false, intent: '/w/tasks/K/spec.md', projectRefs: ['/w/drupal/.claude/secperf/project.md'],
-  shards: { drupal: [[e('drupal/x.php', '/w/drupal')]], nextjs: [[e('react/src/a.ts', '/w/react')]], a11y: [], infra: [[e('drupal/azure-pipelines.yml', '/w/drupal')]] },
+  shards: { drupal: [[e("drupal/x';touch pwned;'.php", '/w/drupal')]], nextjs: [[e('react/src/a.ts', '/w/react')]], a11y: [], infra: [[e('drupal/azure-pipelines.yml', '/w/drupal')]] },
   seamFinder: true, decoupledRef: true, manifests: [], infra: ['drupal/azure-pipelines.yml'], versions: {}, audits: {}, skipped: [] }
 const out2 = await run(args2, agent2, pipeline, () => {}, () => {})
 assert.deepEqual(out2.finders.map(j => j.key), ['drupal-1', 'logic-drupal-1', 'nextjs-1', 'logic-nextjs-1', 'seam', 'infra-1'])
@@ -71,7 +71,8 @@ assert.ok(prompts['find:logic-drupal-1'].includes('/w/tasks/K/spec.md'), 'logic 
 assert.ok(!prompts['find:drupal-1'].includes('/w/tasks/K/spec.md'), 'secperf finder does not get the intent')
 assert.ok(prompts['find:seam'].includes('LOG-05'), 'seam finder checks the data contract when logic is in scope')
 assert.ok(Object.values(prompts).every(p => p.includes('project.md')), 'every agent gets the project context')
-assert.ok(prompts['find:nextjs-1'].includes('git -C /w/react diff b1 -- src/a.ts'), 'per-repo diff command')
+assert.ok(prompts['find:nextjs-1'].includes("git -C '/w/react' diff 'b1' -- 'src/a.ts'"), 'per-repo diff command, quoted')
+assert.ok(prompts['find:drupal-1'].includes("-- 'x'\\''"+";touch pwned;'\\''.php'"), 'a quote in a file name cannot end the quoting')
 assert.ok(prompts['verify:logic-nextjs-1'].includes('For logic findings'), 'logic verifier rule')
 assert.ok(prompts['find:drupal-1'].includes('checklist not read'), 'finder reports an unreadable checklist')
 assert.ok(Object.values(prompts).every(p => p.includes('one file per call')), 'every agent loads references with Read')

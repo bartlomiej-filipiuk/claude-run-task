@@ -85,7 +85,9 @@ const JUDGE_OUT = {
 
 const statusText = s => s === 'U' ? 'new, untracked: read the whole file' : s === 'A' ? 'added' : s === 'D' ? 'deleted: read the diff only' : 'modified'
 const patchText = p => p.endsWith('.patch') ? ' (a patch the build applies to contrib or core: review the code it adds)' : ''
-const fileList = files => files.map(f => `- ${f.path} [${statusText(f.status)}]${patchText(f.path)} diff: git -C ${f.repo || A.repoRoot} diff ${f.base || A.base} -- ${f.rel || f.path}`).join('\n')
+// Paths and refs come from the reviewed repo: quote them, the agents run these commands in a shell.
+const q = s => `'${String(s).replace(/'/g, `'\\''`)}'`
+const fileList = files => files.map(f => `- ${f.path} [${statusText(f.status)}]${patchText(f.path)} diff: git -C ${q(f.repo || A.repoRoot)} diff ${q(f.base || A.base)} -- ${q(f.rel || f.path)}`).join('\n')
 // zsh fails on `echo =====` separators (=word is a command lookup) and joined cat output gets truncated.
 const READ_NOTE = 'Load each reference, project context and intent file with the Read tool, one file per call (page through a long file with offset/limit until you reach its end). Do not cat several files in one shell command.'
 

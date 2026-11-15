@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -194,12 +195,14 @@ code{background:var(--muted);padding:1px 4px;border-radius:4px;font-size:13px}
 table{border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid var(--line);padding:4px 8px}
 h2{border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:32px}.mermaid{margin:12px 0;overflow-x:auto}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr" crossorigin="anonymous"></script>
 </head><body><main id="c"></main>
 <script id="md" type="text/markdown">{md}</script>
 <script>
-document.getElementById('c').innerHTML = marked.parse(document.getElementById('md').textContent);
+// The Markdown quotes code from the reviewed branch: sanitise before it becomes HTML.
+document.getElementById('c').innerHTML = DOMPurify.sanitize(marked.parse(document.getElementById('md').textContent));
 document.querySelectorAll('code.language-mermaid').forEach(c => {
   const d = document.createElement('div'); d.className = 'mermaid'; d.textContent = c.textContent; c.parentElement.replaceWith(d);
 });
@@ -674,8 +677,10 @@ def render(a, parts, ranges):
         def cmds(f):
             r = real[f['repo']]
             if r.get('head'):
-                return (f"git -C {r['real']} diff {f['base']} {r['head']} -- {f['rel']}", f"git -C {r['real']} show {r['head']}:{f['rel']}")
-            return f"git -C {r['real']} diff {f['base']} -- {f['rel']}", f"cat {os.path.join(r['real'], f['rel'])}"
+                return (shlex.join(['git', '-C', r['real'], 'diff', f['base'], r['head'], '--', f['rel']]),
+                        shlex.join(['git', '-C', r['real'], 'show', f"{r['head']}:{f['rel']}"]))
+            return (shlex.join(['git', '-C', r['real'], 'diff', f['base'], '--', f['rel']]),
+                    shlex.join(['cat', os.path.join(r['real'], f['rel'])]))
         by = {f['path']: f['sid'] for f in files}
         json.dump({'title': a.title, 'ranges': ranges,
                    'nodes': [{'id': f['sid'], 'path': f['path'], 'group': f['group'], 'status': f['status'], 'add': f['add'],
@@ -806,7 +811,7 @@ def render(a, parts, ranges):
     html = None
     if a.html:
         html = os.path.splitext(os.path.abspath(a.out))[0] + '.html'
-        md = '\n'.join(l for l in out if not l.startswith('\n![graph]')).replace('</script', '<\\/script')
+        md = re.sub(r'</(script)', r'<\\/\1', '\n'.join(l for l in out if not l.startswith('\n![graph]')), flags=re.I)
         open(html, 'w').write(HTML.replace('{title}', esc(a.title)).replace('{md}', md))
     print(json.dumps({'out': os.path.abspath(a.out), 'svg': svg, 'html': html, 'flow': flow, 'flow_warnings': story_warn, 'ranges': ranges, 'files': len(files), 'edges': len(edges), 'seam': len(set(seam)),
                       'entries': len(set(entries)), 'collapsed': collapse,

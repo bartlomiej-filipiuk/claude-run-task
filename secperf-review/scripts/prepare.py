@@ -79,6 +79,17 @@ def load_config(repo):
         sys.exit(f'{os.path.join(repo, CONFIG)} is not valid JSON: {e}')
 
 
+def load_config_at(repo, rev):
+    """The config as committed at `rev`: the branch under review must not set its own review scope."""
+    raw = git(repo, 'show', f'{rev}:{CONFIG}', check=False)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}
+
+
 def default_branch(repo):
     ref = git(repo, 'symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD', check=False)
     if ref:
@@ -219,10 +230,15 @@ def stack_of(repo, rel, cache):
     return lang or 'templates'
 
 
-def collect(repo, base_arg, path, stack, label, force_wide, globs=()):
+def collect(repo, base_arg, path, stack, label, force_wide, globs=(), out=None):
     """Classify one repo's changes. `label` prefixes display paths in pair mode ('' otherwise)."""
-    cfg = load_config(repo)
-    base, base_label, notes = resolve_base(repo, base_arg or cfg.get('base'))
+    tree_cfg = load_config(repo)
+    base, base_label, notes = resolve_base(repo, base_arg or tree_cfg.get('base'))
+    # Excludes and limits come from the base, so a branch cannot hide its own files from review.
+    cfg = load_config_at(repo, base)
+    if tree_cfg != cfg:
+        notes.append(f'{CONFIG} differs from {base_label}: its {base_label} version applies, so this branch cannot change '
+                     f'its own review scope; review that change' + ('' if base_arg else '; pass --base explicitly'))
     commits = int(git(repo, 'rev-list', '--count', f'{base}..HEAD', check=False) or 0) if base != 'HEAD' else 0
     limit = cfg.get('maxCommits', MAX_COMMITS)
     if commits > limit and not force_wide:
@@ -320,7 +336,7 @@ def collect(repo, base_arg, path, stack, label, force_wide, globs=()):
         d, name = os.path.join(repo, os.path.dirname(m['rel'])), os.path.basename(m['rel'])
         key = os.path.dirname(m['path']) or '.'
         if name in ('composer.json', 'composer.lock') and f'composer {key}' not in audits:
-            audits[f'composer {key}'] = run_audit(['composer', 'audit', '--locked', '--format=json'], d)
+            audits[f'composer {key}'] = run_audit(['composer', 'audit', '--locked', '--format=json', '--no-plugins', '--no-scripts'], d)
         elif name == 'package-lock.json':
             audits[f'npm {key}'] = run_audit(['npm', 'audit', '--package-lock-only', '--json'], d)
         elif name == 'pnpm-lock.yaml':
@@ -329,13 +345,23 @@ def collect(repo, base_arg, path, stack, label, force_wide, globs=()):
             audits[f'yarn {key}'] = 'yarn audit not run automatically; run it manually if the lockfile change matters'
 
     ctx = os.path.join(repo, PROJECT_CONTEXT)
+    refs = [ctx] if os.path.exists(ctx) else []
+    base_ctx = git(repo, 'show', f'{base}:{PROJECT_CONTEXT}', check=False)
+    if refs and open(ctx, errors='replace').read().strip() != base_ctx:
+        # Finders read this file as instructions; the branch's own version could steer them.
+        notes.append(f'{PROJECT_CONTEXT} differs from {base_label}: finders get the {base_label} version; review that change')
+        refs = []
+        if base_ctx and out:
+            refs = [os.path.join(os.path.abspath(out), f'project-base-{re.sub(r"[^A-Za-z0-9]+", "-", label or "repo")}.md')]
+            with open(refs[0], 'w') as fh:
+                fh.write(base_ctx + '\n')
     return {
         'repo': {'label': label or os.path.basename(repo), 'root': repo, 'base': base, 'baseLabel': base_label,
                  'branch': git(repo, 'branch', '--show-current', check=False) or 'detached', 'commits': commits},
         'groups': groups, 'skipped': skipped, 'unclassified': unclassified,
         'notes': [f'{label}: {n}' if label else n for n in notes],
         'versions': versions, 'audits': audits, 'seamMarkers': seam_markers, 'untracked': untracked,
-        'projectRefs': [ctx] if os.path.exists(ctx) else [],
+        'projectRefs': refs,
     }
 
 
@@ -377,11 +403,11 @@ def main():
         if pair == root:
             sys.exit('--pair points at the same repo')
         display_root = os.path.commonpath([root, pair])
-        parts.append(collect(root, a.base, a.path, a.stack, os.path.relpath(root, display_root), a.force_wide, a.exclude))
-        parts.append(collect(pair, a.base, None, a.stack, os.path.relpath(pair, display_root), a.force_wide, a.exclude))
+        parts.append(collect(root, a.base, a.path, a.stack, os.path.relpath(root, display_root), a.force_wide, a.exclude, a.out))
+        parts.append(collect(pair, a.base, None, a.stack, os.path.relpath(pair, display_root), a.force_wide, a.exclude, a.out))
     else:
         display_root = root
-        parts.append(collect(root, a.base, a.path, a.stack, '', a.force_wide, a.exclude))
+        parts.append(collect(root, a.base, a.path, a.stack, '', a.force_wide, a.exclude, a.out))
 
     groups = {g: [e for p in parts for e in p['groups'][g]] for g in parts[0]['groups']}
 
