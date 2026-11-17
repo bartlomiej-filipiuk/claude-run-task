@@ -38,6 +38,23 @@ Save the JSON to `tasks/<ID>/review/T<N>.json`. Rule on every finding and write 
   stands. CONFIRMED = the finding is accepted. UNVERIFIABLE = disputed, it goes to the user in the final summary;
 - nit: joins a fix round that runs for other findings; a nit alone starts no round.
 
-After the fix round the verifier gets one claim per accepted finding ("R2 fixed at file:line"). Panel: gate `review`,
-`fail` while a finding is accepted and unfixed. Light tier: the session applies the same four lenses inline,
-`detail:"inline: N findings"`. Docs tier: `skip`.
+Panel and `verdict.py`: gate `review`, `fail` while a finding is accepted and unfixed. Light tier: the session applies
+the same four lenses inline, `detail:"inline: N findings"`. Docs tier: `skip`.
+
+## Next round (after each fix round)
+
+Write the new diff package `tasks/<ID>/review/T<N>-r<K>.diff` the same way, then SendMessage to the same reviewer
+(one reviewer, several rounds: it already knows the code and its own findings, so a round costs a fraction of a fresh
+review and still reviews the fix itself). The accepted findings of the security review, challenge and revert check
+go in the same message. Prompt:
+
+```text
+Round <K>. The implementer fixed the accepted findings below. New diff: tasks/<ID>/review/T<N>-r<K>.diff (the whole task again; compare it with your previous diff to see what changed).
+Accepted: <id: one line each, from every pass>. Rejected with my ruling, do not reopen unless the new code changes them: <id: ruling>.
+1. For each accepted finding answer fixed or not fixed, with the file:line that shows it.
+2. Review only the lines that changed since your last round, with the same four lenses and the same finding rules. New ids continue your numbering.
+Return only JSON: {"status":[{"id":"R2","fixed":true,"file":"path:line"}],"findings":[...same shape as before...]}
+```
+
+Save it to `tasks/<ID>/review/T<N>-r<K>.json` and rule on new findings as in round one. The reviewer cannot be
+reached: the verifier fallback in `loop.md` step 6.

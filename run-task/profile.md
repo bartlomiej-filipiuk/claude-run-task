@@ -66,7 +66,7 @@ graduation: none                 # none | declined <date> | overlay <skill name>
 <project steps keyed to a phase: "Phase 5: <step>, <command>, <when>">
 
 ## History
-<date> | <ID> | <size> | <verdict> | lessons: <accepted numbers or none>
+<date> | <ID> | <size> | <verdict> | lessons: <accepted numbers or none> | yield: <gate accepted/runs, ...>
 ```
 
 ## Bootstrap (no profile yet)

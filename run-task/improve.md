@@ -48,7 +48,13 @@ the accepted rows:
   and says what it would do. Then one local commit in that repo per accepted row, message `retro <ID>: <lesson>`, so
   any lesson can be reverted. The skill installed as a plain copy: say which files to copy back to the source.
 Then append one line to the profile's `## History`, also when no row was accepted:
-`<date> | <ID> | <size> | <verdict> | lessons: <accepted numbers or none>`.
+`<date> | <ID> | <size> | <verdict> | lessons: <accepted numbers or none> | <output of verdict.py yield <T>>`.
+
+**Prune.** Rules, passes and checklists only grow unless something removes them. When the last five History lines
+carry a yield and a pass accepted 0 findings in all of them, the next retro proposes a row that narrows when it runs
+(a tier, a trigger, a size), with the five counts as the evidence: a profile row when the pass is project-specific, a
+core row otherwise. A pass that carries a hard rule (the final review, the QA walk, the negative control) is never
+proposed for removal, only for a narrower brief.
 
 ## 4. Graduation to a project overlay skill
 

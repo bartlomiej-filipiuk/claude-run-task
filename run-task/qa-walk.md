@@ -29,13 +29,38 @@ An AC that asks for an artefact rather than a behaviour (a demo recording, a doc
 is proved by the artefact itself: it is produced in Phase 5, linked under Deliverables in `summary.md`, and needs no
 step and no negative control. It is not an open question at the plan gate.
 
-## Order of work (after the fix wave and the full gate run)
+## Steps before the code (Phase 3)
 
-1. Write `tasks/<ID>/qa-walk/steps.mjs`. `where`, `surface` and `expect` are the sentences that go into the QA note;
-   write `expect` from what the run shows, not from what the code suggests.
-2. Run with the change: `node ~/.claude/skills/run-task/scripts/qa-walk/run.mjs tasks/<ID>/qa-walk/steps.mjs
-   [--lib <profile qa_walk.lib>]`. Every step must pass. A failing step is a finding for one more fix round; when the
-   step itself was wrong, correct the path or the wording, never the pass condition to fit the result.
+The proof steps are the end-to-end tests of the task: written before the code, red on the base, green when the task
+is done.
+
+1. Write `tasks/<ID>/qa-walk/steps.mjs`: one `proof` step per row of the approved proof table, `where`, `surface` and
+   `expect` as the gate worded them, `withoutChange` from its base column. `run()` returns `{pass: false}` when the
+   page, field, route or record the task adds is missing; it does not throw, because a throw is `error` and an error
+   proves nothing.
+2. Run the proof steps on the fresh branch, before any code: `node ~/.claude/skills/run-task/scripts/qa-walk/run.mjs
+   tasks/<ID>/qa-walk/steps.mjs --only proof --out tasks/<ID>/qa-walk/result-base.json [--lib <profile qa_walk.lib>]`.
+   Each must fail the way `withoutChange` predicts. A step that passes is tightened now; one that cannot be tightened
+   changes the proof the user approved, so it goes to the user (the mid-loop rule), not into a ruling.
+3. `plan.md` names, per internal task, the steps it makes pass; the implementer's brief lists them with the command.
+
+No local stack (below): write the file, skip the runs; the steps become verdict conditions.
+
+## In the loop (Phase 4)
+
+`loop.md` step 5 runs the steps the task owns, `--step S1,S2 --out tasks/<ID>/qa-walk/T<N>.json`, after the gates
+and before any review agent. Every one must pass; a failing step joins the task's fix round. When the step itself was
+wrong, correct the path or the wording, never the pass condition to fit the result. Steps owned by later tasks are
+not run yet.
+
+## Final walk (Phase 5, after the fix wave and the full gate run)
+
+1. Complete `steps.mjs`: add the `regression` steps and make `expect` precise from what the runs show, never weaker
+   than the gate's wording. `where`, `surface` and `expect` are the sentences that go into the QA note.
+2. Run every step with the change: `node ~/.claude/skills/run-task/scripts/qa-walk/run.mjs
+   tasks/<ID>/qa-walk/steps.mjs [--lib <profile qa_walk.lib>]`. Every step must pass. A failing step is a finding for
+   one more fix round, with the same rule for a wrong step; after its commit, `final.md` ("After every commit")
+   says what runs again, this walk included.
 3. Negative control, once per touched repo, proof steps only, through `scripts/revert-check/` with `--base <BASE>`
    and the profile's `revert_pre` (command in the qa-walk README). Nothing else touches that checkout meanwhile. `fail`
    in the predicted way is the proof; `error` is not a fail. State a file revert does not undo (imported config, a
@@ -47,6 +72,8 @@ step and no negative control. It is not an open question at the plan gate.
    for what only the task owner can do).
 6. `run.mjs --print-qa steps.mjs` is the body of the QA note; `--print-conditions` gives the list for the verdict.
    Nothing is in the note that is not in the steps file.
+7. Record `qa-walk` (`--task final`): `pass` when `--table` exits 0, `fail` with the failing step otherwise,
+   `not-covered` or `skip` by the rules below.
 
 Local safety: switch off anything a local submit would send to a live third party (CRM, mail, payments) and restore
 it after; capture every edited text, setting and record before the edit and write it back after.
@@ -62,6 +89,11 @@ the reason, and the verdict rests on the gates and the reviews.
 
 First block of `summary.md` and of the final message. First line is one of the three words, then the proof table,
 then the conditions or the reasons.
+
+Run `python3 ~/.claude/skills/run-task/scripts/verdict/verdict.py check <T>` first. INCOMPLETE: run what it lists as
+missing or stale, record it, check again. When the same gate is still missing or stale after that, the verdict is at
+most GO with conditions, the gate is a condition, and the retro gets a row; the run never loops on it. Otherwise the
+table below applies within the ceiling it prints, never above it.
 
 | verdict | when |
 |---|---|

@@ -9,14 +9,14 @@
 | Decider (Phase 1) | fresh agent | strong, high |
 | Approach check (Phase 1, conditional) | fresh agent, `approach-check.md` | strong, high |
 | Implementer (Phase 4) | fresh agent per task, implementer prompt below | coding, high |
-| Task reviewer (full tier) | fresh agent, `task-review.md` | strong, high |
-| Verifier (by rule) | fresh agent, verifier prompt below | strong, medium |
+| Task reviewer (full tier) | fresh agent, `task-review.md`; the same agent reviews each fix round (SendMessage) | strong, high |
+| Verifier (by rule) | fresh agent, verifier prompt below: doc claims, disputed findings, fix rounds when the reviewer cannot be reached | strong, medium |
 | Security and performance | `security_review` from the profile | as that skill defines |
 | Removed guarantees | `challenge` skill (script plus one challenger) | strong, high |
-| Final whole-branch review | fresh agent | strong, high |
+| Final whole-branch review | fresh agent; the same agent reviews the fix wave and later fix rounds | strong, high |
 | Intent check | fresh agent, `intent-check.md` | strong, medium |
 | Visual review (conditional) | `scripts/visual-audit/` plus a fresh agent, `visual-review.md` | strong, medium |
-| Revert check, QA walk, change map | scripts, no model | - |
+| Revert check, QA walk, change map, gate record and verdict ceiling | scripts, no model | - |
 
 Model names come from the profile's `models`. Agents are `general-purpose` with the prompt below as the start of the
 brief, unless the project defines its own agent of the same role in `.claude/agents/`, which then wins. Briefs go to

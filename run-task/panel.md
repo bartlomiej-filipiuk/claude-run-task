@@ -5,9 +5,10 @@ When it is not available, skip every call silently; the ledger and the task file
 
 - Phase change: `{kind:"phase", phase:"intake"|"analysis"|"gate"|"plan"|"loop"|"final"|"wrapup"}`.
 - Internal task: `{kind:"task", task:"T2", status:"start"|"review"|"fix"|"done", round?}`.
-- Gates that are not a plain exit code, also when skipped or not covered:
+- Gates that are not a plain exit code, also when skipped or not covered (the same results go to
+  `scripts/verdict/verdict.py record`, which is not optional):
   `{kind:"gate", task:"T2"|null, gate:"<name>", result:"pass"|"fail"|"skip"|"baseline", detail:"<counts or reason>"}`.
-  Names: `scope`, `approach`, `review`, `revert`, `secperf`, `challenge`, `verifier`, `intent`, `visual`, `smoke`,
+  Names: `scope`, `approach`, `proof-steps`, `review`, `revert`, `secperf`, `challenge`, `verifier`, `intent`, `visual`, `smoke`,
   `qa-walk`, `change-map`. Per task always report `review`, `revert`, `secperf`, `challenge`, `verifier`. A
   `not covered` gate is `result:"skip"` with `detail:"not covered: <what>"`.
 - The verdict: `{kind:"note", text:"verdict: GO with conditions (2)"}`.

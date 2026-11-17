@@ -30,6 +30,9 @@ Files next to this one are read when their phase starts, not up front.
 - **Never assume a test failure is a regression**: run it on the base first (`scripts/revert-check/`).
 - **Every gate reports a result**: pass, fail, baseline (fails on the base too), skip with a reason, or
   `not covered` when the profile or the tooling cannot check this stack. `not covered` is never shown as a pass.
+  Each result is recorded with `scripts/verdict/verdict.py record`, which stamps the commit of every touched repo; a
+  result describes that commit only. The verdict is never above what `verdict.py check` allows; its one exception,
+for a gate that stays missing or stale after a re-run, is in `qa-walk.md` ("Verdict").
 - Chat in the language the profile or the user's instructions name; code, comments, docs and commits in English
   unless the profile says otherwise.
 
@@ -42,7 +45,8 @@ options; it names the phase each one changes.
 
 **Resume.** When `tasks/<ID>/` already exists, read `ac.md`, `gate.md` and `ledger.md` and continue at the first phase
 whose artefact is missing; the ledger's first line always holds the current phase, task and step. Say where the run
-resumes before doing anything.
+resumes before doing anything. A run resumed in Phase 5 first runs `verdict.py check`: a gate it lists as missing or
+stale runs again, whatever artefacts exist.
 
 Artefacts go to `<artefacts>/<ID>/` (profile key `artefacts_dir`, default `tasks/` at the workspace root). The
 directory must be ignored or outside every repo, or review scripts will read it as part of the change; inside a repo
@@ -134,11 +138,19 @@ changed or dropped AC, the approved proof step per AC as what the tester sees. N
 ## Phase 3 - Plan
 
 `tasks/<ID>/plan.md`, written by the session: small internal tasks, each one coherent unit of code plus its own test
-plus its own review, with its tier, the files in scope, the test to write first and the gates to run. Not
+plus its own review, with its tier, the files in scope, the test to write first, the proof steps it makes pass and
+the gates to run. Not
 `superpowers:writing-plans`: it saves plans inside the repo, adds a commit per step and hands over to its own executor,
 which conflicts with this loop. Ledger in `tasks/<ID>/ledger.md`:
 its first line is `phase | task | step`, updated at every step (it is what a resumed run reads); below it every
 ruling I make on the user's behalf, one line each, repeated in the final message.
+
+Then, before any code:
+1. Create the branch in every repo the plan touches (`loop.md` step 1) and start the local stack on it.
+2. `python3 ~/.claude/skills/run-task/scripts/verdict/verdict.py init <T> --repo <abs path> ... --task T1 ...`.
+3. Write `tasks/<ID>/qa-walk/steps.mjs` from the approved proof table and run its proof steps on the fresh branch,
+   which still equals the base (`qa-walk.md`, "Steps before the code"). Every proof step must fail the way its
+   `withoutChange` says; one that passes or errors is fixed now, before an implementer relies on it.
 
 ## Phase 4 - Per-task loop
 

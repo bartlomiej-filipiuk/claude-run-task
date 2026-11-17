@@ -28,6 +28,6 @@ Do not modify any files. Return only JSON:
 Render to `tasks/<ID>/intent-check.md`: one table for items (`id | intent | status | where | proof`), one for groups
 that are `unexplained` or `conflict` (explained groups as a count). Rule on every row that is not covered or
 explained: fix in the fix wave, a ruling ("pre-existing bug fixed on the way, kept, listed in the PR notes"), or a
-question for the user at the result gate. After the fix wave the verifier re-checks only the fixed rows. The table
+question for the user at the result gate. After the fix wave the final reviewer's next round re-checks only the fixed rows (`final.md`). The table
 opens `summary.md`. Panel: gate `intent`, `pass` when nothing is `missing` and every unexplained or conflict row has a
 fix or a ruling.

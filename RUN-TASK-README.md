@@ -8,7 +8,7 @@ project profile and the skill itself.
 
 | Directory | What |
 |---|---|
-| `run-task/` | the flow (`SKILL.md` plus one file per phase or prompt) and its scripts: `revert-check`, `qa-walk`, `visual-audit` |
+| `run-task/` | the flow (`SKILL.md` plus one file per phase or prompt) and its scripts: `revert-check`, `qa-walk`, `visual-audit`, `verdict` |
 | `secperf-review/` | security, performance, cache and logic review of a diff (Drupal, Next.js, and a generic shard for Laravel, Symfony, Django, FastAPI, Flask, Go, Rust, Rails, Java) |
 | `challenge/` | asks for evidence when a diff removes a guarantee (side effect, guard, assertion) |
 | `change-map/` | change map of a branch for the PR reader |

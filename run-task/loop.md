@@ -17,23 +17,25 @@ docs task is raised to full before anything else starts. Ruling: "T3 raised to f
 
 ## Steps
 
-1. **Branch** (first task per repo): clean tree (`git status --porcelain` empty), `git fetch <remote>`, then
-   `git checkout -b <branch_pattern> <remote>/<base_branch>`.
+1. **Branch**, made in Phase 3 for every repo in the plan (a repo the plan missed gets it here, the same way): clean
+   tree (`git status --porcelain` empty), `git fetch <remote>`, then `git checkout -b <branch_pattern>
+   <remote>/<base_branch>`.
 2. **Ladder before writing**: understand the data flow, then YAGNI, reuse, the platform's own feature, cost of an
    abstraction, minimum design. The brief says it in one sentence.
 3. **Tests first**, in the layer the profile's "Test layers" table names for this kind of change. Every task with
    logic leaves at least one test that fails without the change. Docs or config-only tasks say "no test" in the brief.
    A change type the table does not cover: pick the cheapest layer that proves the behaviour, and note it for the
    retro.
-4. **Implement** through a fresh implementer (`roles.md`) with a brief file: the task, its tests, the gates to run,
-   the files in scope. One implementer per checkout at a time.
-5. **Gates**: the profile's gate commands for the touched repo. A failure is compared against the base before anyone
-   calls it a regression. A gate with no command is `not covered`.
+4. **Implement** through a fresh implementer (`roles.md`) with a brief file: the task, its tests, the proof steps it
+   must make pass with their command, the gates to run, the files in scope. One implementer per checkout at a time.
+5. **Gates, then proof steps**: the profile's gate commands for the touched repo. A failure is compared against the
+   base before anyone calls it a regression. A gate with no command is `not covered`. Then the proof steps this task
+   owns (`qa-walk.md`, "In the loop"); a failing step starts the fix round before any review agent runs.
 6. **Review by tier**. Two scripts first, one after the other, nothing else touching the checkout until both exit:
    - challenge selection: `python3 ~/.claude/skills/challenge/scripts/hunks.py --base HEAD --intent tasks/<ID>/ac.md
-     --out tasks/<ID>/challenge/T<N>` (`--pair <other repo>` when two repos changed). The script reads only Drupal
-     projects (`drupal/core` in `composer.json`), Next.js apps and infra/CI files, and it reports "0 selected", not
-     an error, for anything else. When the task changes code outside those, the gate is `not covered: <stack>`, never
+     --out tasks/<ID>/challenge/T<N>` (`--pair <other repo>` when two repos changed). The script selects hunks in the
+     stacks its `SKILL.md` lists (Drupal, Next.js, infra/CI files and per-language groups for other server code) and
+     reports changed code no group claims as not covered. For that code the gate is `not covered: <stack>`, never
      `skip`; I read the removed lines of the diff myself for the blocker signals above (removed side effect, guard, access check, permission, security switch, test assertion) (raise the tier when one is
      there), and the reviewer's "removed guarantee" check carries the rest.
    - revert check: `python3 ~/.claude/skills/run-task/scripts/revert-check/revert-check.py --repo <repo> [--pre '<revert_pre>']
@@ -46,9 +48,9 @@ docs task is raised to full before anything else starts. Ruling: "T3 raised to f
    - the reviewer (full tier), `task-review.md`;
    - the security review on the uncommitted task diff, by the profile's `security_review`:
      - `secperf-review`: `--base HEAD --intent tasks/<ID>/ac.md --out tasks/<ID>/secperf/T<N>` (never without
-       `--base`; follow that skill for the Workflow call). It reads only Drupal and Next.js code: when the task
-       changes code it did not review (its "not checked" or skipped list, or "nothing in scope" while the diff has
-       code), run the built-in `security-review` on that code;
+       `--base`; follow that skill for the Workflow call). Full packs for Drupal and Next.js, a generic shard for
+       other server stacks: code it did not review (its `not_covered` list, or "nothing in scope" while the diff has
+       code) gets the built-in `security-review`;
      - `claude-security`: per task the built-in `security-review` below; the plugin runs once, in the final review;
      - `security-review`: the built-in skill on the uncommitted diff. It covers security only, so report
        `not covered: perf, cache` beside its result; the reviewer's correctness lens carries logic;
@@ -59,12 +61,23 @@ docs task is raised to full before anything else starts. Ruling: "T3 raised to f
      the brief, and answers them), the challenger rules. Rejected answers join the fix round; escalated
      ones go to the final summary and the PR notes.
 
-   **Verifier** runs when at least one holds: the task wrote docs, an ADR, a guide or QA notes (claims from those
-   texts); a finding is disputed or about to be rejected; a fix round happened (one claim per accepted finding, "fixed
-   at file:line"). Otherwise `skip`, "no claims". A "fixed" claim that is not CONFIRMED starts the next round; a
-   finding I wanted to reject that is not REFUTED stands.
-   Fix rounds: up to three by the same implementer, then a fresh one; after each round the verifier, and a failed
-   revert check runs again.
+   **After a fix round** the same reviewer gets the next round through SendMessage (`task-review.md`, "Next round"):
+   per accepted finding from every pass (review, security, challenge, revert) it says fixed or not fixed, and it
+   reviews the lines the round changed. A finding it calls not fixed, or a new one I accept, starts the next round.
+   Step 5 (gates and proof steps) and a failed revert check run again. Light tier: the session does the same inline. The
+   reviewer cannot be reached (no SendMessage, a resumed session): the verifier gets one claim per accepted finding,
+   "fixed at file:line", and a claim not CONFIRMED starts the next round.
+   **Verifier** runs when the task wrote docs, an ADR, a guide or QA notes (claims from those texts), or a finding is
+   disputed or about to be rejected. A fix round alone does not start it. Otherwise `skip`, "no claims". A finding I
+   wanted to reject that is not REFUTED stands.
+   Fix rounds: up to three by the same implementer, then a fresh one.
+
+   Record `proof-steps`, `review`, `revert`, `secperf`, `challenge` and `verifier` for the task (`verdict.py record
+   --task T<N>`). `--accepted` = findings this run of the pass produced that were accepted for a fix; it goes only on
+   the record of a run that produced findings (0 when it found nothing), so `yield` counts runs, not re-records.
+   After a fix round, re-record each pass with its new result: a pass that did not run again (the security review
+   whose findings the reviewer confirmed fixed) gets `pass` with `--detail "fixed, confirmed in review round <K>"`
+   and no `--accepted`.
 7. **Controller check**: what agents could not do (a browser pass, headers on the wire, multi-instance assumptions).
    Full-tier task matching the visual trigger: the layout audit on the branch build (`visual-review.md`, per-task
    variant); findings join this task's fix round.

@@ -21,10 +21,23 @@ Then in ONE message:
 - **intent check**, `intent-check.md`;
 - **visual review** when its trigger matches, `visual-review.md`.
 
-ONE fix wave for everything accepted, then the verifier with one claim per fixed finding, rulings for anything left.
-Fix-wave changes (and later QA-walk fix rounds) are committed locally like a task (`loop.md` step 8).
+ONE fix wave for everything accepted, by a fresh implementer per touched repo whose brief is the accepted findings,
+committed locally like a task (`loop.md` step 8). Then the next round of the
+final reviewer through SendMessage, the `task-review.md` "Next round" prompt with the delta `git diff <commit before
+the fix wave>..HEAD` instead of the task diff and every accepted finding from all four passes; rulings for anything
+left. The same after every later QA-walk fix round. The reviewer cannot be reached: a fresh strong-model agent gets
+the delta, `ac.md` and the findings list with the same prompt. Its result is recorded as the final `review` at HEAD,
+which is what lets the security review, the intent check and the visual review stand for the earlier commit
+(`scripts/verdict/README.md`).
 Then `change-map --base <BASE> --svg --out tasks/<ID>/change-map.md` when the change-map skill supports the stack;
 otherwise `not covered`.
+
+Record every pass of this section (`verdict.py record --task final`): `review`, `secperf`, `intent`, `visual`,
+`challenge` (the script), with `--accepted` as in `loop.md` step 6.
+
+**After every commit in this phase** (the fix wave, a QA-walk fix round), on the new HEAD: the challenge script and
+the change map run again, then section 2 again, then the whole final walk (`qa-walk.md`, steps 2 to 4). Only the
+security review, the intent check and the visual review are not repeated; the reviewer's next round covers them.
 
 ## 2. Full gates and smoke
 
@@ -33,13 +46,14 @@ cannot break the main paths unnoticed). Every failure is run again without the c
 `python3 ~/.claude/skills/run-task/scripts/revert-check/revert-check.py --repo <repo> --base <BASE> --no-baseline [--pre '<revert_pre>'] -- <the failing tests>`.
 Passes without the change = regression, joins the fix wave. Fails without it too = old failure, a `pre-existing`
 ruling and a follow-up; it does not block. A failure that does not repeat is run twice more and reported as flaky.
-No smoke configured = `not covered`. Docs-only tasks: `skip`.
+No smoke configured = `not covered`. Docs-only tasks: `skip`. Record each profile gate and `smoke` per repo
+(`--task final --repo <path>`), and `change-map`.
 
 ## 3. QA walk and verdict
 
 `qa-walk.md`: every step a tester will get is first done by script; proof steps must fail without the change. Then
-the verdict at the top of `summary.md`: **GO**, **GO with conditions**, or **NO-GO**, by the table in `qa-walk.md`.
-Never round up.
+`verdict.py check`, and the verdict at the top of `summary.md`: **GO**, **GO with conditions**, or **NO-GO**, by the
+table in `qa-walk.md` within the ceiling the check prints. Never round up.
 
 ## 4. Deliverables in `tasks/<ID>/`
 
